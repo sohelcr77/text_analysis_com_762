@@ -35,32 +35,17 @@ df['clean_text'] = df['Text'].apply(clean_text)
 # ==============================
 # TIME PROCESSING
 # ==============================
-df['Time'] = pd.to_datetime(df['Time'], unit='s')
-df['Year'] = df['Time'].dt.year
-
-
 # ==============================
-# 🛡️ ROBUST TIME HANDLING 
+# SAFE TIME HANDLING ()
 # ==============================
 
-date_column = None
-
-# Try to auto-detect date column
-for col in df.columns:
-    if col.lower() in ['time', 'timestamp', 'date']:
-        date_column = col
-        break
-
-if date_column:
-    try:
-        df[date_column] = pd.to_datetime(df[date_column], unit='s', errors='coerce')
-        df['Year'] = df[date_column].dt.year
-    except:
-        df[date_column] = pd.to_datetime(df[date_column], errors='coerce')
-        df['Year'] = df[date_column].dt.year
+if 'Time' in df.columns:
+    df['Time'] = pd.to_datetime(df['Time'], unit='s', errors='coerce')
+    df['Year'] = df['Time'].dt.year
 else:
-    st.warning("⚠️ No time/date column found. Time analysis disabled.")
-    df['Year'] = 0# ==============================
+    st.warning("⚠️ No 'Time' column found → Time analysis disabled")
+    df['Year'] = 0
+
 # 🎯 INTERACTIVE FILTERS
 # ==============================
 
@@ -74,8 +59,8 @@ if df['Year'].nunique() > 1:
     )
 else:
     year_range = (0, 9999)
-
 st.write("Columns:", df.columns.tolist())
+
 st.sidebar.header("🔎 Filters")
 
 # Year filter
