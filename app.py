@@ -40,19 +40,32 @@ df['Year'] = df['Time'].dt.year
 
 
 # ==============================
-# SAFE TIME HANDLING
+# 🛡️ ROBUST TIME HANDLING 
 # ==============================
-if 'Time' in df.columns:
-    df['Time'] = pd.to_datetime(df['Time'], unit='s')
-    df['Year'] = df['Time'].dt.year
+
+date_column = None
+
+# Try to auto-detect date column
+for col in df.columns:
+    if col.lower() in ['time', 'timestamp', 'date']:
+        date_column = col
+        break
+
+if date_column:
+    try:
+        df[date_column] = pd.to_datetime(df[date_column], unit='s', errors='coerce')
+        df['Year'] = df[date_column].dt.year
+    except:
+        df[date_column] = pd.to_datetime(df[date_column], errors='coerce')
+        df['Year'] = df[date_column].dt.year
 else:
-    st.warning("⚠️ 'Time' column not found. Time-based analysis disabled.")
-    df['Year'] = 0  # fallback
-# ==============================
+    st.warning("⚠️ No time/date column found. Time analysis disabled.")
+    df['Year'] = 0# ==============================
 # 🎯 INTERACTIVE FILTERS
 # ==============================
 
-if 'Year' in df.columns and df['Year'].nunique() > 1:
+# Year filter only if valid
+if df['Year'].nunique() > 1:
     year_range = st.sidebar.slider(
         "Select Year Range",
         int(df['Year'].min()),
@@ -62,8 +75,7 @@ if 'Year' in df.columns and df['Year'].nunique() > 1:
 else:
     year_range = (0, 9999)
 
-st.write("Columns in dataset:", df.columns.tolist())
-
+st.write("Columns:", df.columns.tolist())
 st.sidebar.header("🔎 Filters")
 
 # Year filter
