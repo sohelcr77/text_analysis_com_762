@@ -38,9 +38,31 @@ df['clean_text'] = df['Text'].apply(clean_text)
 df['Time'] = pd.to_datetime(df['Time'], unit='s')
 df['Year'] = df['Time'].dt.year
 
+
+# ==============================
+# SAFE TIME HANDLING
+# ==============================
+if 'Time' in df.columns:
+    df['Time'] = pd.to_datetime(df['Time'], unit='s')
+    df['Year'] = df['Time'].dt.year
+else:
+    st.warning("⚠️ 'Time' column not found. Time-based analysis disabled.")
+    df['Year'] = 0  # fallback
 # ==============================
 # 🎯 INTERACTIVE FILTERS
 # ==============================
+
+if 'Year' in df.columns and df['Year'].nunique() > 1:
+    year_range = st.sidebar.slider(
+        "Select Year Range",
+        int(df['Year'].min()),
+        int(df['Year'].max()),
+        (int(df['Year'].min()), int(df['Year'].max()))
+    )
+else:
+    year_range = (0, 9999)
+
+
 st.sidebar.header("🔎 Filters")
 
 # Year filter
