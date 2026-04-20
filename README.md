@@ -111,4 +111,4 @@ streamlit run app.py
 
 ## 👨‍💻 Author
 
-Developed as part of NLP & Data Analysis coursework project.
+Developed as part of NLP & Data Analysis coursework project by Md.Shohel Rana
