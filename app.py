@@ -8,44 +8,69 @@ from textblob import TextBlob
 
 st.set_page_config(page_title="E-commerce Sentiment Analysis", layout="wide")
 
-# =========================================================
-# 📌 TITLE
-# =========================================================
 st.title("🛒 E-commerce Customer Behaviour & Sentiment Analysis")
 
-st.markdown("""
-This app analyses customer reviews using NLP techniques including sentiment analysis,
-word clouds, and behavioural trends.
-""")
-
-# =========================================================
-# 📂 FILE UPLOAD
-# =========================================================
-uploaded_file = st.file_uploader("Upload Reviews CSV (or use sample)", type=["csv"])
+# ==============================
+# LOAD DATA
+# ==============================
+uploaded_file = st.file_uploader("Upload Reviews CSV", type=["csv"])
 
 @st.cache_data
 def load_data(file):
-    df = pd.read_csv(file)
-    return df
+    return pd.read_csv(file)
 
 if uploaded_file:
     df = load_data(uploaded_file)
 else:
-    st.warning("Using sample dataset (first 10k rows)")
-    df = pd.read_csv("Reviews.csv", nrows=10000)
+    df = pd.read_csv("Reviews.csv", nrows=20000)
 
-# =========================================================
-# 🧹 TEXT CLEANING
-# =========================================================
+# ==============================
+# CLEAN TEXT
+# ==============================
 def clean_text(text):
     return re.sub(r'[^a-zA-Z ]', '', str(text)).lower()
 
 df['clean_text'] = df['Text'].apply(clean_text)
 
-# =========================================================
-# 😊 SENTIMENT ANALYSIS
-# =========================================================
-df['sentiment'] = df['clean_text'].apply(lambda x: TextBlob(x).sentiment.polarity)
+# ==============================
+# TIME PROCESSING
+# ==============================
+df['Time'] = pd.to_datetime(df['Time'], unit='s')
+df['Year'] = df['Time'].dt.year
+
+# ==============================
+# 🎯 INTERACTIVE FILTERS
+# ==============================
+st.sidebar.header("🔎 Filters")
+
+# Year filter
+year_range = st.sidebar.slider(
+    "Select Year Range",
+    int(df['Year'].min()),
+    int(df['Year'].max()),
+    (int(df['Year'].min()), int(df['Year'].max()))
+)
+
+# Rating filter
+rating_range = st.sidebar.slider(
+    "Select Rating Range",
+    int(df['Score'].min()),
+    int(df['Score'].max()),
+    (1, 5)
+)
+
+# Apply filters
+filtered_df = df[
+    (df['Year'].between(year_range[0], year_range[1])) &
+    (df['Score'].between(rating_range[0], rating_range[1]))
+]
+
+# ==============================
+# SENTIMENT
+# ==============================
+filtered_df['sentiment'] = filtered_df['clean_text'].apply(
+    lambda x: TextBlob(x).sentiment.polarity
+)
 
 def label_sentiment(x):
     if x > 0:
@@ -55,85 +80,66 @@ def label_sentiment(x):
     else:
         return 'neutral'
 
-df['label'] = df['sentiment'].apply(label_sentiment)
+filtered_df['label'] = filtered_df['sentiment'].apply(label_sentiment)
 
-# =========================================================
-# 📊 SENTIMENT DISTRIBUTION
-# =========================================================
+# ==============================
+# VISUALS
+# ==============================
+
+# Sentiment Distribution
 st.subheader("📊 Sentiment Distribution")
 fig1, ax1 = plt.subplots()
-df['label'].value_counts().plot(kind='bar', ax=ax1)
+filtered_df['label'].value_counts().plot(kind='bar', ax=ax1)
 st.pyplot(fig1)
 
-# =========================================================
-# ⭐ RATINGS PATTERN
-# =========================================================
+# Ratings Distribution
 st.subheader("⭐ Ratings Distribution")
 fig2, ax2 = plt.subplots()
-df['Score'].value_counts().sort_index().plot(kind='bar', ax=ax2)
+filtered_df['Score'].value_counts().sort_index().plot(kind='bar', ax=ax2)
 st.pyplot(fig2)
 
-# =========================================================
-# 🔍 SENTIMENT vs RATING
-# =========================================================
+# Sentiment vs Rating
 st.subheader("🔍 Sentiment vs Rating")
 fig3, ax3 = plt.subplots()
-sns.boxplot(x='Score', y='sentiment', data=df, ax=ax3)
+sns.boxplot(x='Score', y='sentiment', data=filtered_df, ax=ax3)
 st.pyplot(fig3)
 
-# =========================================================
-# 📈 TIME TREND
-# =========================================================
-st.subheader("📈 Reviews Over Time")
+# ==============================
+# WORD CLOUD
+# ==============================
+st.subheader("☁️ Word Cloud")
 
-df['Time'] = pd.to_datetime(df['Time'], unit='s')
-df['Year'] = df['Time'].dt.year
+text = " ".join(filtered_df['clean_text'])
+wc = WordCloud(stopwords=set(STOPWORDS),
+               background_color="white").generate(text)
 
 fig4, ax4 = plt.subplots()
-df['Year'].value_counts().sort_index().plot(ax=ax4)
+ax4.imshow(wc)
+ax4.axis("off")
 st.pyplot(fig4)
 
-# =========================================================
-# ☁️ WORD CLOUDS
-# =========================================================
-st.subheader("☁️ Word Clouds")
+# ==============================
+# 🔴 REAL-TIME SENTIMENT INPUT
+# ==============================
+st.subheader("🧠 Real-Time Sentiment Prediction")
 
-custom_stopwords = set(STOPWORDS).union({
-    'br', 'product', 'one', 'like', 'taste', 'food'
-})
+user_input = st.text_area("Enter a review:")
 
-col1, col2 = st.columns(2)
+if st.button("Analyze Sentiment"):
+    if user_input.strip() != "":
+        polarity = TextBlob(user_input).sentiment.polarity
+        
+        st.write(f"Sentiment Score: {round(polarity,3)}")
+        
+        if polarity > 0:
+            st.success("✅ Positive Review")
+        elif polarity < 0:
+            st.error("⚠️ Negative Review")
+        else:
+            st.info("😐 Neutral Review")
 
-# Positive
-with col1:
-    st.markdown("### Positive Reviews")
-    pos_text = " ".join(df[df['label'] == 'positive']['clean_text'])
-    wc_pos = WordCloud(stopwords=custom_stopwords,
-                       background_color="white").generate(pos_text)
-    fig5, ax5 = plt.subplots()
-    ax5.imshow(wc_pos)
-    ax5.axis("off")
-    st.pyplot(fig5)
-
-# Negative
-with col2:
-    st.markdown("### Negative Reviews")
-    neg_text = " ".join(df[df['label'] == 'negative']['clean_text'])
-    wc_neg = WordCloud(stopwords=custom_stopwords,
-                       background_color="white").generate(neg_text)
-    fig6, ax6 = plt.subplots()
-    ax6.imshow(wc_neg)
-    ax6.axis("off")
-    st.pyplot(fig6)
-
-# =========================================================
-# 📋 DATA PREVIEW
-# =========================================================
-st.subheader("📋 Sample Data")
-st.dataframe(df.head())
-
-# =========================================================
-# ✅ FOOTER
-# =========================================================
-st.markdown("---")
-st.markdown("Developed for NLP & Data Analysis Project")
+# ==============================
+# DATA PREVIEW
+# ==============================
+st.subheader("📋 Filtered Data Preview")
+st.dataframe(filtered_df.head())
