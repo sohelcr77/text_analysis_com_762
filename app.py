@@ -62,6 +62,7 @@ if 'Year' in df.columns and df['Year'].nunique() > 1:
 else:
     year_range = (0, 9999)
 
+st.write("Columns in dataset:", df.columns.tolist())
 
 st.sidebar.header("🔎 Filters")
 
